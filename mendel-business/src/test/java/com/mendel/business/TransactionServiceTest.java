@@ -91,6 +91,46 @@ public class TransactionServiceTest {
     }
 
     @Test
+    void shouldThrowMendelException_whenTransactionParentIdEqualsItsId() {
+        // Given
+        Long id = 1L;
+        TransactionDto dto = TransactionDto.builder()
+                .amount(new BigDecimal("50.0"))
+                .type("gift")
+                .parentId(id)
+                .build();
+
+        // When & Then
+        MendelException exception = assertThrows(MendelException.class, () -> transactionService.saveTransaction(id, dto));
+        assertEquals(EMendelExceptionCode.INVALID_TRANSACTION_DATA, exception.getExceptionCode());
+        verify(repository, never()).save(any(), any());
+    }
+
+    @Test
+    void shouldReturnSumWithoutInfiniteLoop_whenCycleDetectedInRepository() {
+        // Given
+        // 1 -> 2 -> 1 (This shouldn't happen in real storage but we want robustness in getSum)
+        Long id1 = 1L;
+        Long id2 = 2L;
+
+        TransactionEntity tx1 = TransactionEntity.builder().amount(new BigDecimal("10.0")).build();
+        TransactionEntity tx2 = TransactionEntity.builder().amount(new BigDecimal("20.0")).parentId(id1).build();
+
+        // findById is called twice for id1 (validation + loop), once for id2 in loop
+        when(repository.findById(id1)).thenReturn(tx1);
+        when(repository.findById(id2)).thenReturn(tx2);
+
+        when(repository.findChildren(id1)).thenReturn(List.of(id2));
+        when(repository.findChildren(id2)).thenReturn(List.of(id1));
+
+        // When
+        BigDecimal result = transactionService.getSum(id1);
+
+        // Then
+        assertEquals(0, new BigDecimal("30.0").compareTo(result));
+    }
+
+    @Test
     void shouldSaveTransaction_whenValidDataProvided() {
         // Given
         Long id = 1L;

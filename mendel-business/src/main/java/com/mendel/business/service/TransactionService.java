@@ -23,6 +23,12 @@ public class TransactionService {
 
     public void saveTransaction(Long id, TransactionDto transactionDto) {
         log.debug("Saving transaction with id: {}", id);
+        
+        if (Objects.equals(id, transactionDto.getParentId())) {
+            log.error("Transaction with id {} cannot be its own parent", id);
+            throw new MendelException(EMendelExceptionCode.INVALID_TRANSACTION_DATA);
+        }
+
         TransactionEntity transaction = TransactionMapper.INSTANCE.toEntity(transactionDto);
         transaction.setId(id);
         repository.save(id, transaction);
@@ -43,7 +49,10 @@ public class TransactionService {
 
         BigDecimal totalSum = BigDecimal.ZERO;
         List<Long> allRelatedIds = new ArrayList<>();
+        java.util.Set<Long> visited = new java.util.HashSet<>();
+        
         allRelatedIds.add(id);
+        visited.add(id);
 
         for (int i = 0; i < allRelatedIds.size(); i++) {
             Long currentId = allRelatedIds.get(i);
@@ -53,7 +62,12 @@ public class TransactionService {
                 if (Objects.nonNull(currentTx.getAmount())) {
                     totalSum = totalSum.add(currentTx.getAmount());
                 }
-                allRelatedIds.addAll(repository.findChildren(currentId));
+                
+                for (Long childId : repository.findChildren(currentId)) {
+                    if (visited.add(childId)) {
+                        allRelatedIds.add(childId);
+                    }
+                }
             }
         }
 
