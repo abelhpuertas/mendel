@@ -29,13 +29,105 @@ public class TransactionServiceTest {
     @InjectMocks
     private TransactionService transactionService;
 
+    // --- saveTransaction Tests ---
+
+    @Test
+    void shouldThrowMendelException_whenTransactionParentIdEqualsItsId() {
+        Long id = 1L;
+        TransactionDto dto = TransactionDto.builder()
+                .amount(new BigDecimal("50.0"))
+                .type("gift")
+                .parentId(id)
+                .build();
+
+        MendelException exception = assertThrows(MendelException.class, () -> transactionService.saveTransaction(id, dto));
+        assertEquals(EMendelExceptionCode.INVALID_TRANSACTION_DATA, exception.getExceptionCode());
+        verify(repository, never()).save(any(), any());
+    }
+
+    @Test
+    void shouldThrowMendelException_whenParentTransactionNotFound() {
+        Long id = 1L;
+        Long parentId = 2L;
+        TransactionDto dto = TransactionDto.builder()
+                .amount(new BigDecimal("50.0"))
+                .type("gift")
+                .parentId(parentId)
+                .build();
+        
+        when(repository.findById(parentId)).thenReturn(null);
+
+        MendelException exception = assertThrows(MendelException.class, () -> transactionService.saveTransaction(id, dto));
+        assertEquals(EMendelExceptionCode.TRANSACTION_NOT_FOUND, exception.getExceptionCode());
+        verify(repository).findById(parentId);
+        verify(repository, never()).save(any(), any());
+    }
+
+    @Test
+    void shouldSaveTransaction_whenValidDataProvided() {
+        Long id = 1L;
+        TransactionDto dto = TransactionDto.builder()
+                .amount(new BigDecimal("50.0"))
+                .type("gift")
+                .build();
+
+        transactionService.saveTransaction(id, dto);
+
+        verify(repository).save(eq(id), any(TransactionEntity.class));
+    }
+
+    @Test
+    void shouldSaveTransaction_whenValidDataProvidedWithParent() {
+        Long id = 1L;
+        Long parentId = 2L;
+        TransactionDto dto = TransactionDto.builder()
+                .amount(new BigDecimal("50.0"))
+                .type("gift")
+                .parentId(parentId)
+                .build();
+        
+        TransactionEntity parentEntity = TransactionEntity.builder().amount(new BigDecimal("10.0")).type("cars").build();
+        when(repository.findById(parentId)).thenReturn(parentEntity);
+
+        transactionService.saveTransaction(id, dto);
+
+        verify(repository).findById(parentId);
+        verify(repository).save(eq(id), any(TransactionEntity.class));
+    }
+
+    // --- getTransactionIdsByType Tests ---
+
+    @Test
+    void shouldReturnEmptyList_whenNoTransactionsByTypeFound() {
+        String type = "unknown";
+        when(repository.findIdsByType(type)).thenReturn(List.of());
+
+        List<Long> result = transactionService.getTransactionIdsByType(type);
+
+        assertTrue(result.isEmpty());
+        verify(repository).findIdsByType(type);
+    }
+
+    @Test
+    void shouldReturnTransactionIds_whenTransactionsByTypeExist() {
+        String type = "cars";
+        List<Long> expectedIds = List.of(1L, 2L, 3L);
+        when(repository.findIdsByType(type)).thenReturn(expectedIds);
+
+        List<Long> result = transactionService.getTransactionIdsByType(type);
+
+        assertEquals(expectedIds.size(), result.size());
+        assertTrue(result.containsAll(expectedIds));
+        verify(repository).findIdsByType(type);
+    }
+
+    // --- getSum Tests ---
+
     @Test
     void shouldThrowMendelException_whenGetSumNonExistentIdProvided() {
-        // Given
         Long id = 999L;
         when(repository.findById(id)).thenReturn(null);
 
-        // When & Then
         MendelException exception = assertThrows(MendelException.class, () -> transactionService.getSum(id));
         assertEquals(EMendelExceptionCode.TRANSACTION_NOT_FOUND, exception.getExceptionCode());
         verify(repository).findById(id);
@@ -43,17 +135,14 @@ public class TransactionServiceTest {
 
     @Test
     void shouldReturnSum_whenSingleTransactionExists() {
-        // Given
         Long id = 1L;
         BigDecimal amount = new BigDecimal("100.0");
         TransactionEntity entity = TransactionEntity.builder().amount(amount).type("cars").build();
         when(repository.findById(id)).thenReturn(entity);
         when(repository.findChildren(id)).thenReturn(List.of());
 
-        // When
         BigDecimal result = transactionService.getSum(id);
 
-        // Then
         assertEquals(0, amount.compareTo(result));
         verify(repository, times(2)).findById(id);
         verify(repository).findChildren(id);
@@ -61,8 +150,6 @@ public class TransactionServiceTest {
 
     @Test
     void shouldReturnTransitiveSum_whenMultipleLevelsExist() {
-        // Given
-        // 1 -> 2 -> 3
         Long id1 = 1L;
         Long id2 = 2L;
         Long id3 = 3L;
@@ -71,7 +158,6 @@ public class TransactionServiceTest {
         TransactionEntity tx2 = TransactionEntity.builder().amount(new BigDecimal("20.0")).parentId(id1).build();
         TransactionEntity tx3 = TransactionEntity.builder().amount(new BigDecimal("30.0")).parentId(id2).build();
 
-        // findById is called twice for id1 (validation + loop), once for id2 and id3 in loop
         when(repository.findById(id1)).thenReturn(tx1);
         when(repository.findById(id2)).thenReturn(tx2);
         when(repository.findById(id3)).thenReturn(tx3);
@@ -80,10 +166,8 @@ public class TransactionServiceTest {
         when(repository.findChildren(id2)).thenReturn(List.of(id3));
         when(repository.findChildren(id3)).thenReturn(List.of());
 
-        // When
         BigDecimal result = transactionService.getSum(id1);
 
-        // Then
         assertEquals(0, new BigDecimal("60.0").compareTo(result));
         verify(repository, times(2)).findById(id1);
         verify(repository).findById(id2);
@@ -91,69 +175,42 @@ public class TransactionServiceTest {
     }
 
     @Test
-    void shouldThrowMendelException_whenTransactionParentIdEqualsItsId() {
-        // Given
-        Long id = 1L;
-        TransactionDto dto = TransactionDto.builder()
-                .amount(new BigDecimal("50.0"))
-                .type("gift")
-                .parentId(id)
-                .build();
-
-        // When & Then
-        MendelException exception = assertThrows(MendelException.class, () -> transactionService.saveTransaction(id, dto));
-        assertEquals(EMendelExceptionCode.INVALID_TRANSACTION_DATA, exception.getExceptionCode());
-        verify(repository, never()).save(any(), any());
-    }
-
-    @Test
     void shouldReturnSumWithoutInfiniteLoop_whenCycleDetectedInRepository() {
-        // Given
-        // 1 -> 2 -> 1 (This shouldn't happen in real storage but we want robustness in getSum)
         Long id1 = 1L;
         Long id2 = 2L;
 
         TransactionEntity tx1 = TransactionEntity.builder().amount(new BigDecimal("10.0")).build();
         TransactionEntity tx2 = TransactionEntity.builder().amount(new BigDecimal("20.0")).parentId(id1).build();
 
-        // findById is called twice for id1 (validation + loop), once for id2 in loop
         when(repository.findById(id1)).thenReturn(tx1);
         when(repository.findById(id2)).thenReturn(tx2);
 
         when(repository.findChildren(id1)).thenReturn(List.of(id2));
         when(repository.findChildren(id2)).thenReturn(List.of(id1));
 
-        // When
         BigDecimal result = transactionService.getSum(id1);
 
-        // Then
         assertEquals(0, new BigDecimal("30.0").compareTo(result));
     }
 
     @Test
-    void shouldSaveTransaction_whenValidDataProvided() {
-        // Given
-        Long id = 1L;
-        TransactionDto dto = TransactionDto.builder().amount(new BigDecimal("50.0")).type("gift").build();
+    void shouldReturnSum_whenChildTransactionHasNullAmount() {
+        Long id1 = 1L;
+        Long id2 = 2L;
 
-        // When
-        transactionService.saveTransaction(id, dto);
+        TransactionEntity tx1 = TransactionEntity.builder().amount(new BigDecimal("10.0")).build();
+        TransactionEntity tx2 = TransactionEntity.builder().amount(null).parentId(id1).build();
 
-        // Then
-        verify(repository).save(eq(id), any(TransactionEntity.class));
-    }
+        when(repository.findById(id1)).thenReturn(tx1);
+        when(repository.findById(id2)).thenReturn(tx2);
 
-    @Test
-    void shouldReturnEmptyList_whenNoTransactionsByTypeFound() {
-        // Given
-        String type = "unknown";
-        when(repository.findIdsByType(type)).thenReturn(List.of());
+        when(repository.findChildren(id1)).thenReturn(List.of(id2));
+        when(repository.findChildren(id2)).thenReturn(List.of());
 
-        // When
-        List<Long> result = transactionService.getTransactionIdsByType(type);
+        BigDecimal result = transactionService.getSum(id1);
 
-        // Then
-        assertTrue(result.isEmpty());
-        verify(repository).findIdsByType(type);
+        assertEquals(0, new BigDecimal("10.0").compareTo(result));
+        verify(repository, times(2)).findById(id1);
+        verify(repository).findById(id2);
     }
 }
