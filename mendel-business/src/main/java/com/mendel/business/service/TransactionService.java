@@ -29,6 +29,11 @@ public class TransactionService {
             throw new MendelException(EMendelExceptionCode.INVALID_TRANSACTION_DATA);
         }
 
+        if (Objects.nonNull(transactionDto.getParentId()) && Objects.isNull(repository.findById(transactionDto.getParentId()))) {
+            log.error("Parent transaction with id {} not found", transactionDto.getParentId());
+            throw new MendelException(EMendelExceptionCode.TRANSACTION_NOT_FOUND);
+        }
+
         TransactionEntity transaction = TransactionMapper.INSTANCE.toEntity(transactionDto);
         transaction.setId(id);
         repository.save(id, transaction);
