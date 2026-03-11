@@ -5,7 +5,7 @@ This project is an implementation of the Mendel Java Code Challenge. It provides
 
 - **Main Technologies:** Java 21, Spring Boot 3.4.3, Maven, Lombok, MapStruct.
 - **Architecture:** Multi-module layered architecture (API → Business → Model).
-- **Storage:** Thread-safe In-memory storage using `HashMap` and custom indexing (no SQL).
+- **Storage:** In-memory storage using `HashMap` and custom indexing (no SQL).
 
 ### Module Structure
 - `mendel-api`: REST Controllers and global exception handling.
