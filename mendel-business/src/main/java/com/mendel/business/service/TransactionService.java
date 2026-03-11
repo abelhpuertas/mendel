@@ -13,8 +13,10 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -55,7 +57,8 @@ public class TransactionService {
 
         BigDecimal totalSum = BigDecimal.ZERO;
         List<Long> allRelatedIds = new ArrayList<>();
-        java.util.Set<Long> visited = new java.util.HashSet<>();
+        // Tracks visited transaction IDs to prevent infinite loops in case of circular dependencies
+        Set<Long> visited = new HashSet<>();
         
         allRelatedIds.add(id);
         visited.add(id);
