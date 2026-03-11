@@ -5,18 +5,19 @@ import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Repository
 public class InMemoryTransactionRepository {
     
-    private final Map<Long, TransactionEntity> storage = new ConcurrentHashMap<>();
-    private final Map<String, Set<Long>> typeIndex = new ConcurrentHashMap<>();
-    private final Map<Long, Set<Long>> childrenIndex = new ConcurrentHashMap<>();
+    private final Map<Long, TransactionEntity> storage = new HashMap<>();
+    private final Map<String, Set<Long>> typeIndex = new HashMap<>();
+    private final Map<Long, Set<Long>> childrenIndex = new HashMap<>();
 
     public void save(Long id, TransactionEntity transaction) {
         TransactionEntity oldTransaction = storage.put(id, transaction);
@@ -50,7 +51,7 @@ public class InMemoryTransactionRepository {
 
     private <K> void addToIndex(Map<K, Set<Long>> index, K key, Long id) {
         if (Objects.nonNull(key)) {
-            index.computeIfAbsent(key, k -> ConcurrentHashMap.newKeySet()).add(id);
+            index.computeIfAbsent(key, k -> new HashSet<>()).add(id);
         }
     }
 
