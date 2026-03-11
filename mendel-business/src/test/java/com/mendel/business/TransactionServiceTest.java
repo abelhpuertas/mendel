@@ -1,5 +1,6 @@
 package com.mendel.business;
 
+import com.mendel.dto.api.v1.SumResponseDto;
 import com.mendel.dto.api.v1.TransactionDto;
 import com.mendel.business.exception.MendelException;
 import com.mendel.business.service.TransactionService;
@@ -141,9 +142,9 @@ public class TransactionServiceTest {
         when(repository.findById(id)).thenReturn(entity);
         when(repository.findChildren(id)).thenReturn(List.of());
 
-        BigDecimal result = transactionService.getSum(id);
+        SumResponseDto result = transactionService.getSum(id);
 
-        assertEquals(0, amount.compareTo(result));
+        assertEquals(0, amount.compareTo(result.getSum()));
         verify(repository, times(2)).findById(id);
         verify(repository).findChildren(id);
     }
@@ -166,9 +167,9 @@ public class TransactionServiceTest {
         when(repository.findChildren(id2)).thenReturn(List.of(id3));
         when(repository.findChildren(id3)).thenReturn(List.of());
 
-        BigDecimal result = transactionService.getSum(id1);
+        SumResponseDto result = transactionService.getSum(id1);
 
-        assertEquals(0, new BigDecimal("60.0").compareTo(result));
+        assertEquals(0, new BigDecimal("60.0").compareTo(result.getSum()));
         verify(repository, times(2)).findById(id1);
         verify(repository).findById(id2);
         verify(repository).findById(id3);
@@ -188,9 +189,9 @@ public class TransactionServiceTest {
         when(repository.findChildren(id1)).thenReturn(List.of(id2));
         when(repository.findChildren(id2)).thenReturn(List.of(id1));
 
-        BigDecimal result = transactionService.getSum(id1);
+        SumResponseDto result = transactionService.getSum(id1);
 
-        assertEquals(0, new BigDecimal("30.0").compareTo(result));
+        assertEquals(0, new BigDecimal("30.0").compareTo(result.getSum()));
     }
 
     @Test
@@ -207,9 +208,9 @@ public class TransactionServiceTest {
         when(repository.findChildren(id1)).thenReturn(List.of(id2));
         when(repository.findChildren(id2)).thenReturn(List.of());
 
-        BigDecimal result = transactionService.getSum(id1);
+        SumResponseDto result = transactionService.getSum(id1);
 
-        assertEquals(0, new BigDecimal("10.0").compareTo(result));
+        assertEquals(0, new BigDecimal("10.0").compareTo(result.getSum()));
         verify(repository, times(2)).findById(id1);
         verify(repository).findById(id2);
     }

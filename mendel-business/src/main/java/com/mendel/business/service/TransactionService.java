@@ -1,6 +1,7 @@
 package com.mendel.business.service;
 
 import com.mendel.model.entity.TransactionEntity;
+import com.mendel.dto.api.v1.SumResponseDto;
 import com.mendel.dto.api.v1.TransactionDto;
 import com.mendel.business.exception.MendelException;
 import com.mendel.util.enums.EMendelExceptionCode;
@@ -44,7 +45,7 @@ public class TransactionService {
         return repository.findIdsByType(type);
     }
 
-    public BigDecimal getSum(Long id) {
+    public SumResponseDto getSum(Long id) {
         log.debug("Calculating transitive sum for transaction id: {}", id);
         
         if (Objects.isNull(repository.findById(id))) {
@@ -76,6 +77,6 @@ public class TransactionService {
             }
         }
 
-        return totalSum;
+        return SumResponseDto.builder().sum(totalSum).build();
     }
 }

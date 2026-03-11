@@ -32,7 +32,6 @@ public class TransactionController {
 
     @GetMapping("/sum/{id}")
     public ResponseEntity<SumResponseDto> getSum(@PathVariable Long id) {
-        BigDecimal sum = transactionService.getSum(id);
-        return ResponseEntity.ok(SumResponseDto.builder().sum(sum).build());
+        return ResponseEntity.ok(transactionService.getSum(id));
     }
 }
