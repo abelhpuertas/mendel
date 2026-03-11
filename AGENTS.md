@@ -1,4 +1,4 @@
-# Copilot Instructions - AstroCoins Service
+# Copilot Instructions - Mendel Challenge
 
 ## Project Context
 
